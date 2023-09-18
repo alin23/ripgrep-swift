@@ -46,6 +46,7 @@ See the documentation for `WalkBuilder` for many other options.
 
 #![deny(missing_docs)]
 
+use self::gitignore::Gitignore;
 use std::error;
 use std::fmt;
 use std::io;
@@ -546,5 +547,28 @@ mod tests {
         pub fn path(&self) -> &Path {
             &self.0
         }
+    }
+}
+
+/// Checks if a given path is ignored by the rules in the specified ignore file.
+///
+/// # Arguments
+///
+/// * `path` - A string slice that holds the path to be checked.
+/// * `ignore_file` - A string slice that holds the path to the ignore file.
+///
+/// # Returns
+///
+/// A boolean value indicating whether the path is ignored or not.
+#[allow(dead_code)]
+pub fn check_if_ignored(path: &str, ignore_file: &str) -> bool {
+    let gitignore = Gitignore::new(ignore_file.clone()).0;
+    gitignore.matched(path, false).is_ignore()
+}
+
+#[swift_bridge::bridge]
+mod ffi {
+    extern "Rust" {
+        pub fn check_if_ignored(path: &str, ignore_file: &str) -> bool;
     }
 }
