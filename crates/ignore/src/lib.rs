@@ -563,7 +563,7 @@ mod tests {
 #[allow(dead_code)]
 pub fn check_if_ignored(path: &str, ignore_file: &str) -> bool {
     let gitignore = Gitignore::new(ignore_file.clone()).0;
-    gitignore.matched(path, false).is_ignore()
+    gitignore.matched_path_or_any_parents(path, false).is_ignore()
 }
 
 #[swift_bridge::bridge]
