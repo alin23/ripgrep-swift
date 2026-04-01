@@ -46,7 +46,10 @@ See the documentation for `WalkBuilder` for many other options.
 
 #![deny(missing_docs)]
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
+use self::gitignore::Gitignore;
 
 pub use crate::walk::{
     DirEntry, ParallelVisitor, ParallelVisitorBuilder, Walk, WalkBuilder,
@@ -540,5 +543,92 @@ mod tests {
         pub fn path(&self) -> &Path {
             &self.0
         }
+    }
+}
+
+fn gitignore_cache() -> &'static Mutex<HashMap<String, Gitignore>> {
+    static GITIGNORE_CACHE: OnceLock<Mutex<HashMap<String, Gitignore>>> =
+        OnceLock::new();
+    GITIGNORE_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Removes all cached gitignore data, forcing the next call to
+/// `check_if_ignored` to re-read ignore files from disk.
+#[allow(dead_code)]
+pub fn bust_gitignore_cache() {
+    gitignore_cache().lock().unwrap().clear();
+}
+
+/// Checks if a given path is ignored by the rules in the specified ignore file.
+///
+/// # Arguments
+///
+/// * `path` - A string slice that holds the path to be checked.
+/// * `ignore_file` - A string slice that holds the path to the ignore file.
+/// * `bust_cache` - If true, removes the cached gitignore for `ignore_file`
+///   before checking, forcing a re-read from disk.
+///
+/// # Returns
+///
+/// A boolean value indicating whether the path is ignored or not.
+#[allow(dead_code)]
+pub fn check_if_ignored(path: &str, ignore_file: &str, bust_cache: bool) -> bool {
+    let mut cache = gitignore_cache().lock().unwrap();
+    if bust_cache {
+        cache.remove(ignore_file);
+    }
+    let gitignore = cache.entry(ignore_file.to_string())
+        .or_insert_with(|| Gitignore::new(ignore_file).0);
+    gitignore.matched_path_or_any_parents(path, false).is_ignore()
+}
+
+/// Checks multiple paths against the same ignore file in a single call.
+///
+/// Paths are passed as a single string, split by `separator`. Returns a
+/// string of `"1"` / `"0"` characters (one per input path) joined by the
+/// same separator, indicating whether each path is ignored.
+///
+/// This is more efficient than repeated `check_if_ignored` calls because
+/// the lock is acquired once, the cache is consulted once, and the string
+/// splitting happens in Rust rather than across multiple FFI round-trips.
+#[allow(dead_code)]
+pub fn check_if_ignored_batch(
+    paths: &str,
+    ignore_file: &str,
+    separator: &str,
+    bust_cache: bool,
+) -> String {
+    let mut cache = gitignore_cache().lock().unwrap();
+    if bust_cache {
+        cache.remove(ignore_file);
+    }
+    let gitignore = cache.entry(ignore_file.to_string())
+        .or_insert_with(|| Gitignore::new(ignore_file).0);
+
+    let mut result = String::new();
+    for (i, path) in paths.split(separator).enumerate() {
+        if i > 0 {
+            result.push_str(separator);
+        }
+        if gitignore.matched_path_or_any_parents(path, false).is_ignore() {
+            result.push('1');
+        } else {
+            result.push('0');
+        }
+    }
+    result
+}
+
+#[swift_bridge::bridge]
+mod ffi {
+    extern "Rust" {
+        pub fn check_if_ignored(path: &str, ignore_file: &str, bust_cache: bool) -> bool;
+        pub fn check_if_ignored_batch(
+            paths: &str,
+            ignore_file: &str,
+            separator: &str,
+            bust_cache: bool,
+        ) -> String;
+        pub fn bust_gitignore_cache();
     }
 }

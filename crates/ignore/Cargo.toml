@@ -17,6 +17,7 @@ edition = "2024"
 [lib]
 name = "ignore"
 bench = false
+crate-type = ["staticlib"]
 
 [dependencies]
 crossbeam-deque = "0.8.3"
@@ -25,11 +26,15 @@ log = "0.4.20"
 memchr = "2.6.3"
 same-file = "1.0.6"
 walkdir = "2.4.0"
+swift-bridge = "0.1"
 
 [dependencies.regex-automata]
 version = "0.4.0"
 default-features = false
-features = ["std", "perf", "syntax", "meta", "nfa", "hybrid", "dfa-onepass"]
+features = ["std", "perf", "syntax", "meta", "nfa", "hybrid"]
+
+[build-dependencies]
+swift-bridge-build = "0.1"
 
 [target.'cfg(windows)'.dependencies.winapi-util]
 version = "0.1.2"

@@ -1,0 +1,3 @@
+[submodule "crates/ignore/Ignore"]
+	path = crates/ignore/Ignore
+	url = git@github.com:alin23/swift-ignore
