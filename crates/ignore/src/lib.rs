@@ -579,7 +579,7 @@ pub fn check_if_ignored(path: &str, ignore_file: &str, bust_cache: bool) -> bool
     }
     let gitignore = cache.entry(ignore_file.to_string())
         .or_insert_with(|| Gitignore::new(ignore_file).0);
-    gitignore.matched_path_or_any_parents(path, false).is_ignore()
+    gitignore.matched_path_or_any_parents(path, Path::new(path).is_dir()).is_ignore()
 }
 
 /// Checks multiple paths against the same ignore file in a single call.
@@ -610,7 +610,7 @@ pub fn check_if_ignored_batch(
         if i > 0 {
             result.push_str(separator);
         }
-        if gitignore.matched_path_or_any_parents(path, false).is_ignore() {
+        if gitignore.matched_path_or_any_parents(path, Path::new(path).is_dir()).is_ignore() {
             result.push('1');
         } else {
             result.push('0');
